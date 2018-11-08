@@ -1,0 +1,62 @@
+---
+title: "hw06-aidanh14"
+author: "Aidan Hughes"
+date: "November 7, 2018"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Overview
+
+Taken from the [homework HTML file](http://stat545.com/Classroom/assignments/hw05/hw05.html), here are the two topics I chose to complete for this assignment:
+
+- Write one (or more) functions that do something useful to pieces of the Gapminder or Singer data.
+
+- Create a nested data frame and map a function over the list column holding the nested data. Use list extraction or other functions to pull interesting information out of these results and work your way back to a simple data frame you can visualize and explore.
+
+Before getting started, let load the necessary packages.
+
+```{r packages}
+suppressPackageStartupMessages(library("gapminder"))
+suppressPackageStartupMessages(library("tidyverse"))
+```
+
+```{r}
+cont_nests <- gapminder %>%
+  group_by(continent) %>%
+  nest()
+
+europe_gap <- cont_nests %>%
+  filter(continent == "Africa") %>%
+  select(-continent) %>%
+  unnest()
+
+some_countries <- europe_gap$country %>%
+  unique() %>% 
+  {
+    rand_nums <- sample(1:length(.), size=10)
+    
+    .[rand_nums] }
+
+some_countries
+
+europe_gap %>%
+  group_by(country) %>%
+  filter(country %in% some_countries) %>%
+  ggplot(aes(x = pop, y = lifeExp)) +
+  geom_point(aes(pop, lifeExp, colour = country)) +
+  geom_smooth(aes(pop, lifeExp, colour = country), method = "lm", se = FALSE) +
+  scale_x_log10()
+
+```
+
+
+```{r}
+gap_linreg <- function (continent_df) {
+  
+}
+```
+
