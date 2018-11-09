@@ -23,6 +23,7 @@ Before getting started, let load the necessary packages.
 suppressPackageStartupMessages(library("gapminder"))
 suppressPackageStartupMessages(library("tidyverse"))
 suppressPackageStartupMessages(library("scales"))
+suppressPackageStartupMessages(library("MASS"))
 ```
 
 # Part 1: Writing a function
@@ -32,8 +33,6 @@ Let's write a function that takes Gapminder data on a single continent and plots
 As always we should walk before we run, so we'll get the functionality working on a sample dataset first.
 
 ```{r}
-size <- 10
-
 america_gap <- gapminder %>%
   filter(continent == "Americas") %>%
   select(-continent)
@@ -53,6 +52,9 @@ america_gap %>%
   geom_point(aes(pop, lifeExp, colour = country)) +
   geom_smooth(aes(pop, lifeExp, colour = country), method = "lm", se = FALSE) +
   scale_x_log10()
+
+rlm(lifeExp ~ pop, america_gap)
+
 ```
 
 Now that we've got the code working, let's store it as a function and try it on a different dataset.
@@ -68,7 +70,7 @@ gap_linreg <- function (continent_df, num_countries) {
       rand_nums <- sample(1:length(.), size = min(num_countries, length(.)))
       .[rand_nums] }
   
-  continent_df %>%
+  p <- continent_df %>%
     group_by(country) %>%
     filter(country %in% some_countries) %>%
     ggplot(aes(x = pop, y = lifeExp)) +
@@ -81,7 +83,6 @@ gap_linreg <- function (continent_df, num_countries) {
          title = "Population vs. Life Expectancy",
          colour = "Country") +
     theme(plot.title = element_text(hjust = 0.5))
-  
   
 }
 
@@ -101,8 +102,16 @@ cont_nests <- gapminder %>%
   nest()
   
 map(cont_nests[["data"]], gap_linreg, 4)
+```
 
-gap_linreg(cont_nests[[1,"data"]], 4)
-  
+We can make another quick function to get the slope and intercept of the robust linear regression model.
+
+```{r}
+temp_fun <- function (df) rlm(lifeExp ~ pop, df)
+
+cont_rlm <- cont_nests %>%
+  mutate("results" = map(.[["data"]], temp_fun))
+
+knitr::kable(cont_rlm)
 ```
 
