@@ -24,6 +24,7 @@ suppressPackageStartupMessages(library("gapminder"))
 suppressPackageStartupMessages(library("tidyverse"))
 suppressPackageStartupMessages(library("scales"))
 suppressPackageStartupMessages(library("MASS"))
+suppressPackageStartupMessages(library("broom"))
 ```
 
 # Part 1: Writing a function
@@ -34,13 +35,12 @@ As always we should walk before we run, so we'll get the functionality working o
 
 ```{r}
 america_gap <- gapminder %>%
-  filter(continent == "Americas") %>%
-  select(-continent)
+  filter(continent == "Americas")
 
 # randomly choose sample indexes for countries in the dataset
 some_countries <- america_gap$country %>%
   unique() %>% {
-    rand_nums <- sample(1:length(.), size = min(size, length(.)))
+    rand_nums <- sample(1:length(.), size = 10)
     .[rand_nums] }
 
 some_countries
@@ -52,8 +52,6 @@ america_gap %>%
   geom_point(aes(pop, lifeExp, colour = country)) +
   geom_smooth(aes(pop, lifeExp, colour = country), method = "lm", se = FALSE) +
   scale_x_log10()
-
-rlm(lifeExp ~ pop, america_gap)
 
 ```
 
@@ -70,7 +68,7 @@ gap_linreg <- function (continent_df, num_countries) {
       rand_nums <- sample(1:length(.), size = min(num_countries, length(.)))
       .[rand_nums] }
   
-  p <- continent_df %>%
+  continent_df %>%
     group_by(country) %>%
     filter(country %in% some_countries) %>%
     ggplot(aes(x = pop, y = lifeExp)) +
@@ -94,7 +92,7 @@ gapminder %>%
   
 # Part 2: Working with Nested Dataframes
 
-Nesting the Gapminder dataset by continent makes it easy to apply the function `gap_linreg()` from the last 
+Nesting the Gapminder dataset by continent makes it easy to apply the function `gap_linreg()` from the last part to multiple datasets. We can use the map function to plot linear regressions for all of the continents.
   
 ```{r}
 cont_nests <- gapminder %>%
@@ -107,10 +105,12 @@ map(cont_nests[["data"]], gap_linreg, 4)
 We can make another quick function to get the slope and intercept of the robust linear regression model.
 
 ```{r}
-temp_fun <- function (df) rlm(lifeExp ~ pop, df)
+cont_rlm_fun <- function (df) rlm(lifeExp ~ pop, df)
 
 cont_rlm <- cont_nests %>%
-  mutate("results" = map(.[["data"]], temp_fun))
+  mutate("results" = map(.[["data"]], cont_rlm_fun),
+         "tidy_results" = map(results, tidy)) %>% 
+  unnest(tidy_results)
 
 knitr::kable(cont_rlm)
 ```

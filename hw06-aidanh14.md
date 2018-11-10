@@ -18,6 +18,8 @@ Before getting started, let load the necessary packages.
 suppressPackageStartupMessages(library("gapminder"))
 suppressPackageStartupMessages(library("tidyverse"))
 suppressPackageStartupMessages(library("scales"))
+suppressPackageStartupMessages(library("MASS"))
+suppressPackageStartupMessages(library("broom"))
 ```
 
 Part 1: Writing a function
@@ -28,25 +30,22 @@ Let's write a function that takes Gapminder data on a single continent and plots
 As always we should walk before we run, so we'll get the functionality working on a sample dataset first.
 
 ``` r
-size <- 10
-
 america_gap <- gapminder %>%
-  filter(continent == "Americas") %>%
-  select(-continent)
+  filter(continent == "Americas")
 
 # randomly choose sample indexes for countries in the dataset
 some_countries <- america_gap$country %>%
   unique() %>% {
-    rand_nums <- sample(1:length(.), size = min(size, length(.)))
+    rand_nums <- sample(1:length(.), size = 10)
     .[rand_nums] }
 
 some_countries
 ```
 
-    ##  [1] Trinidad and Tobago Uruguay             Canada             
-    ##  [4] Venezuela           United States       Jamaica            
-    ##  [7] El Salvador         Brazil              Colombia           
-    ## [10] Haiti              
+    ##  [1] Peru                Costa Rica          Trinidad and Tobago
+    ##  [4] Brazil              Mexico              Cuba               
+    ##  [7] Dominican Republic  Bolivia             Venezuela          
+    ## [10] El Salvador        
     ## 142 Levels: Afghanistan Albania Algeria Angola Argentina ... Zimbabwe
 
 ``` r
@@ -87,7 +86,6 @@ gap_linreg <- function (continent_df, num_countries) {
          title = "Population vs. Life Expectancy",
          colour = "Country") +
     theme(plot.title = element_text(hjust = 0.5))
-  
   
 }
 
@@ -135,8 +133,34 @@ map(cont_nests[["data"]], gap_linreg, 4)
 
 ![](hw06-aidanh14_files/figure-markdown_github/unnamed-chunk-3-5.png)
 
+We can make another quick function to get the slope and intercept of the robust linear regression model.
+
 ``` r
-gap_linreg(cont_nests[[1,"data"]], 4)
+temp_fun <- function (df) rlm(lifeExp ~ pop, df)
+
+cont_rlm <- cont_nests %>%
+  mutate("results" = map(.[["data"]], temp_fun),
+         "tidy_results" = map(results, tidy)) %>%
+  unnest(tidy_results)
+
+knitr::kable(cont_rlm)
 ```
 
-![](hw06-aidanh14_files/figure-markdown_github/unnamed-chunk-3-6.png)
+| continent | term        |    estimate|  std.error|    statistic|
+|:----------|:------------|-----------:|----------:|------------:|
+| Asia      | (Intercept) |  60.3005929|  0.6765123|   89.1345159|
+| Asia      | pop         |   0.0000000|  0.0000000|    0.4896024|
+| Europe    | (Intercept) |  72.0875814|  0.3295220|  218.7641203|
+| Europe    | pop         |   0.0000000|  0.0000000|    1.4574534|
+| Africa    | (Intercept) |  47.6379152|  0.4295632|  110.8985079|
+| Africa    | pop         |   0.0000001|  0.0000000|    2.9525377|
+| Americas  | (Intercept) |  64.3060507|  0.5917385|  108.6730952|
+| Americas  | pop         |   0.0000000|  0.0000000|    3.8980150|
+| Oceania   | (Intercept) |  71.7591076|  1.2984393|   55.2656605|
+| Oceania   | pop         |   0.0000003|  0.0000001|    2.2913859|
+
+``` r
+tidy(cont_rlm[[1, "results"]])
+```
+
+    ## # A tibble: 0 x 0
